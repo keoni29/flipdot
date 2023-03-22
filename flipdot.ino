@@ -2,7 +2,7 @@
  * Flipdot display driver firmware
  * (c) 2023 Koen van Vliet <8by8mail@gmail.com>
  * 
- * Serial command format: Two consecutive bytes containing x,y coordinates and dot polarity (on/off.)
+ * Serial1 command format: Two consecutive bytes containing x,y coordinates and dot polarity (on/off.)
  * CMDH = 1CCC CCCC
  * CMDL = 0xxP RRRR
  * 
@@ -12,8 +12,8 @@
  * x = reserved for future use, set to 0 for now
  */
 
-#define BAUD_RATE 115200UL ///< Serial command interface data rate.
-#define BAUD_RATE 1000000UL ///< Serial command interface data rate.
+#define BAUD_RATE 115200UL ///< Serial1 command interface data rate.
+#define BAUD_RATE 74880UL ///< Serial1 command interface data rate.
 
 // Display parameters
 #define PANEL_NOF_COLUMNS 28 ///< Number of columns per panel
@@ -22,8 +22,8 @@
 
 #define DISPLAY_NOF_COLUMNS PANEL_NOF_COLUMNS * DISPLAY_NOF_PANELS ///< Total number of columns of the display
 
-#define FLIP_DOT_ON_TIME_US 300 ///< On-time of the coil while flipping a dot.\n unit: microseconds\n typical range is 200 to 500
-#define FLIP_DOT_MIN_DELAY_TIME_US 500 ///< Minimum time between flipping dots.
+#define FLIP_DOT_ON_TIME_US 150 ///< On-time of the coil while flipping a dot.\n unit: microseconds\n typical range is 200 to 500
+#define FLIP_DOT_MIN_DELAY_TIME_US 10 ///< Minimum time between flipping dots.
 
 #define PIN_PNL_A0 3  ///< Panel select address pin 
 #define PIN_PNL_A1 2  ///< Panel select address pin
@@ -46,7 +46,9 @@ static inline void selectRow(uint8_t row);
 static inline void selectColumn(uint8_t column);
 
 void setup() {
-  Serial.begin(BAUD_RATE);
+  Serial.begin(115200);
+  Serial.println("Flipdot begin!");
+  Serial1.begin(BAUD_RATE);
 
   pinMode(PIN_PNL_A0, OUTPUT);
   pinMode(PIN_PNL_A1, OUTPUT);
@@ -70,32 +72,36 @@ void loop() {
   uint8_t data, row, col;
   uint8_t cmdl, cmdh;
   
-  // for(data = 0; data <= 1; data++){
-  //   for(row = 0; row < DISPLAY_NOF_ROWS; row++){
-  //     for(col = 0; col < DISPLAY_NOF_COLUMNS; col++){
-  //       flip(col, row, data);
-  //       delayMicroseconds(FLIP_DOT_MIN_DELAY_TIME_US);
-  //     }
-  //   }
-  // }
+  #ifdef TESTPATTERN
+  while(1){
+   for(data = 0; data <= 1; data++){
+     for(row = 0; row < DISPLAY_NOF_ROWS; row++){
+       for(col = 0; col < DISPLAY_NOF_COLUMNS; col++){
+         flip(col, row, data);
+         delayMicroseconds(FLIP_DOT_MIN_DELAY_TIME_US);
+       }
+     }
+   }
+  }
+  #endif
 
   cmdl = 0;
 
   while (1) {
-    if (Serial.available()) {
+    if (Serial1.available()) {
       if (cmdl & (1<<7)) {
         cmdh = cmdl;
-        cmdl = Serial.read();
+        cmdl = Serial1.read();
 
         data = (cmdl >> 4) & 0x01;
         row = cmdl & 0x0F;
         col = cmdh & 0x7F;
-        
-        flip(row, col, data);
+
+        flip(col, row, data);
         
         cmdl = 0;      
       } else {
-        cmdl = Serial.read();
+        cmdl = Serial1.read();
       }
     }
   }
@@ -121,7 +127,7 @@ static inline void selectRow(uint8_t row) {
  */
 static inline void selectColumn(uint8_t column) {
   /* Each column driver has 32 outputs, but only 28 are connected. After 7 columns there is one column which is not wired up, therefore we skip all missing columns. */
-  column += column / 7;
+  column = column + column / 7 + 1;
 
   digitalWrite(PIN_COL_A0, bitRead(column, 0));
   digitalWrite(PIN_COL_A1, bitRead(column, 1));
