@@ -148,24 +148,12 @@ static inline void selectColumn(uint8_t column) {
  * Only updates row and column outputs if the coordinates have changed from last call.
  */
 static void flip(uint8_t x, uint8_t y, uint8_t p) {
-  static uint8_t xx = 0, yy = 0, pp = 0;
-
   if (x < DISPLAY_NOF_COLUMNS && y < DISPLAY_NOF_ROWS) {
-    if (x != xx) {
-      xx = x;
-      selectColumn(xx);
-    }
-  
-    if (y != yy) {
-      yy = y;
-      selectRow(yy);
-    }
-  
-    if (p != pp) {
-      pp = p;
-      digitalWrite(PIN_ROW_POL, pp);
-      digitalWrite(PIN_DAT, pp); // TODO combine pins.
-    }
+    selectColumn(x);
+    selectRow(y);
+    
+    digitalWrite(PIN_ROW_POL, p);
+    digitalWrite(PIN_DAT, p); // TODO combine pins.
     
     digitalWrite(PIN_ENA, HIGH);
     delayMicroseconds(FLIP_DOT_ON_TIME_US);
