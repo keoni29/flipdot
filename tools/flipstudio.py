@@ -40,7 +40,7 @@ mybitmap = []
 for oops in [2]:
     while True:
         for xoffset in range(112):
-            with open('pixelbar-leip.bmp', 'rb') as f:
+            with open('pixelbar-open-day.bmp', 'rb') as f:
                 # read the header information of the bitmap file
                 f.seek(10)
                 offset = int.from_bytes(f.read(4), byteorder='little')
