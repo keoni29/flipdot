@@ -2,7 +2,7 @@
  * Flipdot display driver firmware
  * (c) 2023 Koen van Vliet <8by8mail@gmail.com>
  * 
- * Serial1 command format: Two consecutive bytes containing x,y coordinates and dot polarity (on/off.)
+ * Serial command format: Two consecutive bytes containing x,y coordinates and dot polarity (on/off.)
  * CMDH = 1CCC CCCC
  * CMDL = 0xxP RRRR
  * 
@@ -12,8 +12,7 @@
  * x = reserved for future use, set to 0 for now
  */
 
-#define BAUD_RATE 115200UL ///< Serial1 command interface data rate.
-#define BAUD_RATE 74880UL ///< Serial1 command interface data rate.
+#define BAUD_RATE 74880UL ///< Serial command interface data rate.
 
 // Display parameters
 #define PANEL_NOF_COLUMNS 28 ///< Number of columns per panel
@@ -66,13 +65,14 @@ void setup() {
   pinMode(PIN_ROW_POL, OUTPUT);
 }
 
-
+///#define TESTPATTERN
 // the loop function runs over and over again forever
 void loop() {  
   uint8_t data, row, col;
   uint8_t cmdl, cmdh;
   
   #ifdef TESTPATTERN
+  
   while(1){
    for(data = 0; data <= 1; data++){
      for(row = 0; row < DISPLAY_NOF_ROWS; row++){
@@ -98,6 +98,13 @@ void loop() {
         col = cmdh & 0x7F;
 
         flip(col, row, data);
+//        Serial1.print("Flip");
+//        Serial1.print(col);
+//        Serial1.print(" ");
+//        Serial1.print(row);
+//        Serial1.print(" ");
+//        Serial1.print(data);
+//        Serial1.println();
         
         cmdl = 0;      
       } else {
@@ -152,8 +159,8 @@ static void flip(uint8_t x, uint8_t y, uint8_t p) {
     selectColumn(x);
     selectRow(y);
     
-    digitalWrite(PIN_ROW_POL, p);
-    digitalWrite(PIN_DAT, p); // TODO combine pins.
+    digitalWrite(PIN_ROW_POL, !p);
+    digitalWrite(PIN_DAT, !p); // TODO combine pins.
     
     digitalWrite(PIN_ENA, HIGH);
     delayMicroseconds(FLIP_DOT_ON_TIME_US);
