@@ -1,7 +1,24 @@
-import serial
+import win32pipe, win32file
+# import serial
 import time
 
-ser = serial.Serial('COM5',74880)
+# Create the named pipe
+pipe_name = r'\\.\pipe\mypipe'
+pipe = win32pipe.CreateNamedPipe(
+    pipe_name,                  # Pipe name
+    win32pipe.PIPE_ACCESS_OUTBOUND,  # Pipe open mode (write-only)
+    win32pipe.PIPE_TYPE_BYTE | win32pipe.PIPE_WAIT, # Pipe mode
+    1,                          # Maximum number of instances
+    0,                          # Output buffer size
+    0,                          # Input buffer size
+    0,                          # Timeout in ms
+    None                        # Security attributes
+)
+
+# Connect to the pipe
+win32pipe.ConnectNamedPipe(pipe, None)
+
+# ser = serial.Serial('COM5',74880)
 
 """
    * Serial command format: Two consecutive bytes containing x,y coordinates and dot polarity (on/off.)
@@ -23,12 +40,13 @@ def flip(col, row, pol):
 
     cmdh = (1<<7) | (col & 0x7F)
 
-    ser.write(bytes([cmdh]))
-    ser.write(bytes([cmdl]))
-    
+    # ser.write(bytes([cmdh]))
+    # ser.write(bytes([cmdl]))
 
-mybitmap = []
+    # Send data through the pipe
+    win32file.WriteFile(pipe, bytes([cmdh, cmdl]))    
 
+# Clear the display
 # for y in range(height):
 #         for x in range(width):
 #             flip(x,y,1)
@@ -37,38 +55,41 @@ mybitmap = []
 
 
 # read the pixel data of the bitmap file
-for oops in [2]:
-    while True:
-        for xoffset in range(112):
-            with open('pixelbar-open-day.bmp', 'rb') as f:
-                # read the header information of the bitmap file
-                f.seek(10)
-                offset = int.from_bytes(f.read(4), byteorder='little')
-                f.seek(18)
-                width = int.from_bytes(f.read(4), byteorder='little')
-                height = int.from_bytes(f.read(4), byteorder='little')
-                f.seek(28)
-                num_colors = int.from_bytes(f.read(4), byteorder='little')
-                if num_colors == 0:
-                    num_colors = 2
-                
-                #print("oops = ", oops)
-                f.seek(offset)
-                padding = (4 - ((width * 1) % 4)) % 4
+while True:
+    for xoffset in range(112):
+        with open('pixelbar-open-day.bmp', 'rb') as f:
+            # read the header information of the bitmap file
+            f.seek(10)
+            offset = int.from_bytes(f.read(4), byteorder='little')
+            f.seek(18)
+            width = int.from_bytes(f.read(4), byteorder='little')
+            height = int.from_bytes(f.read(4), byteorder='little')
+            f.seek(28)
+            num_colors = int.from_bytes(f.read(4), byteorder='little')
+            if num_colors == 0:
+                num_colors = 2
+            
+            f.seek(offset)
+            padding = (4 - ((width * 1) % 4)) % 4
+            padding += 2 # todo why do I need to add +2??? This calculation seems wrong
 
-                
+            
 
-                for y in range(height):
-                    for x in range(width // 8):
-                        b = int.from_bytes(f.read(1), byteorder='little')
-                        #print(b)
-                        for i in range(8):
-                            if x * 8 + i >= width:
-                                break
-                            pixel = (b >> (7-i)) & 1
-                            #print("X" if pixel else "_",end='')
-                            flip((width - 1 - (x * 8 + i) + xoffset) % width,height - 1 - y,0 if pixel else 1)
-                            #time.sleep(0.0001)
-                    #print('')
-                    f.seek(padding + oops, 1)
-            time.sleep(0.062)
+            for y in range(height):
+                for x in range(width // 8):
+                    b = int.from_bytes(f.read(1), byteorder='little')
+                    #print(b)
+                    for i in range(8):
+                        if x * 8 + i >= width:
+                            break
+                        pixel = (b >> (7-i)) & 1
+                        #print("X" if pixel else "_",end='')
+                        flip((width - 1 - (x * 8 + i) + xoffset) % width,height - 1 - y,0 if pixel else 1)
+                        #time.sleep(0.0001)
+                #print('')
+                f.seek(padding, 1)
+        time.sleep(0.062)
+
+# Close the pipe
+win32pipe.DisconnectNamedPipe(pipe)
+win32file.CloseHandle(pipe)
