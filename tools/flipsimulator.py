@@ -1,3 +1,5 @@
+# TODO create separate thread for receiving data from pipe
+
 import pygame
 from pygame.locals import *
 import win32file
@@ -25,7 +27,10 @@ NOF_ROWS = 16           # number of rows of the display on the y axis
 OFF = 0                 # pixel OFF state
 ON = 1                  # pixel ON state
 
+# TODO add optional cmdline argument for display resolution. default 112 x 16
+# TODO add optional cmdline argument for display color. default black and yellow
 
+# TODO add optional cmdline argument for mirroring the display horizontally. default: mirror
 
 # Open the named pipe
 pipe_name = r'\\.\pipe\mypipe'
@@ -94,12 +99,17 @@ while running:
         for row in range(0, NOF_ROWS): 
             color = C_DOT_ON if pixel[row][col] else C_DOT_OFF
 
-            center = (col * (DIAMETER + SPACING) + OFFSET_X + RADIUS, 
+            xx = col
+            # Mirror display horizontally
+            xx = NOF_COLUMNS - 1 - col
+            center = (xx * (DIAMETER + SPACING) + OFFSET_X + RADIUS, 
                     row * (DIAMETER + SPACING) + OFFSET_Y + RADIUS)
 
             pygame.draw.circle(window, color, center, RADIUS)
 
     pygame.display.update()
+
+    # Limit and display framerate
     clock.tick(MAXIMUM_FRAMERATE)
     pygame.display.set_caption(f"FPS: {clock.get_fps():.1f}")
 
