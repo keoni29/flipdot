@@ -1,5 +1,6 @@
 import pygame
 from pygame.locals import *
+import win32file
 
 # Colors
 C_BACKGROUND = (0,0,0)  # color for the background
@@ -24,9 +25,19 @@ NOF_ROWS = 16           # number of rows of the display on the y axis
 OFF = 0                 # pixel OFF state
 ON = 1                  # pixel ON state
 
-def receiveCommand():
-    """ Placeholder function """
-    return 0,0,1
+
+
+# Open the named pipe
+pipe_name = r'\\.\pipe\mypipe'
+pipe = win32file.CreateFile(
+    pipe_name,                  # Pipe name
+    win32file.GENERIC_READ,     # Access mode (read-only)
+    0,                          # No sharing
+    None,                       # Security attributes
+    win32file.OPEN_EXISTING,    # Open existing pipe
+    0,                          # No attributes
+    None                        # No template file
+)
 
 # Initialize pygame loop
 pygame.init()
@@ -38,6 +49,8 @@ window = pygame.display.set_mode((hres,vres))
 clock = pygame.time.Clock()
 
 pixel = [[OFF]*NOF_COLUMNS for i in range(NOF_ROWS)]
+
+cmdl = cmdh = 0
 
 running = True
 
@@ -51,12 +64,26 @@ while running:
 
 
     # Receive commands
-    cmd = receiveCommand()
+    pipe_data = win32file.ReadFile(pipe, 1)[1][0]
+    print(pipe_data)
+    
+    if pipe_data is not None:
+        if (cmdl & (1<<7)):
+            cmdh = cmdl
+            # Read data from the pipe
+            cmdl = pipe_data
+            
 
-    if cmd is not None:
-        col, row, pol = cmd
-        if col < NOF_COLUMNS and row < NOF_ROWS:
-            pixel[row][col] = pol
+            data = (cmdl >> 4) & 0x01
+            row = cmdl & 0x0F
+            col = cmdh & 0x7F
+            cmdl = 0
+            if col < NOF_COLUMNS and row < NOF_ROWS:
+                pixel[row][col] = data   
+        else:
+            # Read data from the pipe
+            cmdl = pipe_data
+
 
 
     # Fill background color
@@ -76,5 +103,9 @@ while running:
     clock.tick(MAXIMUM_FRAMERATE)
     pygame.display.set_caption(f"FPS: {clock.get_fps():.1f}")
 
+# Close the pipe
+win32file.CloseHandle(pipe)
+
+# Quit pygame
 pygame.quit()
 
