@@ -39,12 +39,9 @@ ON = 1                  # pixel ON state
 def input_handler_thread(queue, event):
     address = 1
     while not event.is_set():
-        data = sys.stdin.buffer.read(1)
+        data = sys.stdin.buffer.read()
         if len(data):
-            if data == 0xFF:
-                logging.info("Producer got 0xFF from stdin. Stopping.")
-                break
-            queue.put(data[0])
+            queue.put(data)
         else:
             time.sleep(0.1) # Some delay to prevent high CPU load
             
@@ -78,29 +75,31 @@ def display_thread(queue, event):
 
 
         # Receive commands
+        
         try:
-            while not queue.empty():
+            if not queue.empty():
                 data = queue.get(block=False)
+
+                # logging.info(
+                #     "Size %d", queue.qsize()
+                # )
+
                 if data is not None:
-                    if (cmdl & (1<<7)):
-                        cmdh = cmdl
-                        # Read data from the pipe
-                        cmdl = data
-                        
+                    for byte in data:
+                        if (cmdl & (1<<7)):
+                            cmdh = cmdl
+                            cmdl = byte
+                            
 
-                        data = (cmdl >> 4) & 0x01
-                        row = cmdl & 0x0F
-                        col = cmdh & 0x7F
-                        cmdl = 0
-                        if col < NOF_COLUMNS and row < NOF_ROWS:
-                            pixel[row][col] = data   
-                    else:
-                        # Read data from the pipe
-                        cmdl = data
+                            pol = (cmdl >> 4) & 0x01
+                            row = cmdl & 0x0F
+                            col = cmdh & 0x7F
+                            cmdl = 0
+                            if col < NOF_COLUMNS and row < NOF_ROWS:
+                                pixel[row][col] = pol   
+                        else:
+                            cmdl = byte
 
-                logging.info(
-                    "Consumer got data: %d (queue size=%d)", data, queue.qsize()
-                )
         except BaseException as e:
             raise e
 
