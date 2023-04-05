@@ -4,33 +4,11 @@
 # TODO add optional cmdline argument for the input type: pipe or file. default: file
 # TODO add optional cmdline argument for the input file name
 
-
-import win32pipe, win32file
-
 # if args.output_type == 'serial':
 #     import serial
 #     ser = serial.Serial(args.serial_port, args.serial_baudrate)
 
-# import argparse
-
-# if args.output_type == 'pipe':
-if True:
-    # Create the named pipe
-    pipe_name = r'\\.\pipe\mypipe'
-    pipe = win32pipe.CreateNamedPipe(
-        pipe_name,                          # Pipe name
-        win32pipe.PIPE_ACCESS_OUTBOUND,     # Pipe open mode (write-only)
-        win32pipe.PIPE_TYPE_BYTE | 
-            win32pipe.PIPE_WAIT,            # Pipe mode
-        1,                                  # Maximum number of instances
-        0,                                  # Output buffer size
-        0,                                  # Input buffer size
-        0,                                  # Timeout in ms
-        None                                # Security attributes
-    )
-
-    # Connect to the pipe
-    win32pipe.ConnectNamedPipe(pipe, None)
+import sys
 
 """
    * Serial command format: Two consecutive bytes containing x,y coordinates and dot polarity (on/off.)
@@ -53,7 +31,7 @@ def flip(col, row, pol):
     cmdh = (1<<7) | (col & 0x7F)
 
     #ser.write(bytes([cmdh,cmdl]))
-    win32file.WriteFile(pipe, bytes([cmdh, cmdl]))    
+    sys.stdout.buffer.write(bytes([cmdh, cmdl]))    
 
 # Clear the display
 # for y in range(height):
@@ -85,16 +63,10 @@ with open('pixelbar-open-day.bmp', 'rb') as f:
     for y in range(height):
         for x in range(width // 8):
             b = int.from_bytes(f.read(1), byteorder='little')
-            #print(b)
             for i in range(8):
                 if x * 8 + i >= width:
                     break
                 pixel = (b >> (7-i)) & 1
                 #print("X" if pixel else "_",end='')
                 flip((width - 1 - (x * 8 + i)) % width,height - 1 - y,0 if pixel else 1)
-        #print('')
         f.seek(padding, 1)
-
-# Close the pipe
-win32pipe.DisconnectNamedPipe(pipe)
-win32file.CloseHandle(pipe)
