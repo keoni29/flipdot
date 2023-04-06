@@ -1,6 +1,3 @@
-# import argparse
-import time
-import sys
 import pygame
 from pygame.locals import *
 import serial
@@ -43,7 +40,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    with serial.Serial(args.serial_port, 115200, timeout=SERIAL_TIMEOUT_S) as ser:
+    with serial.Serial(args.serial_port, 74880, timeout=SERIAL_TIMEOUT_S) as ser:
         # Initialize pygame loop
         pygame.init()
 

@@ -1,5 +1,3 @@
-# TODO add optional cmdline arguments for setting the output type: serial, pipe or file. default: serial
-# TODO add optional cmdline argument for the serial port. default: None
 # TODO add optional cmdline argument fro the serial baudrate. default: 74880. unit: bits per second
 # TODO add optional cmdline argument for the input type: pipe or file. default: file
 # TODO add optional cmdline argument for the input file name
@@ -61,7 +59,7 @@ def serialize_bitmap(ser, filename, xoffset):
                         break
                     pixel = (b >> (7-i)) & 1
                     #print("X" if pixel else "_",end='')
-                    flip(ser, (width - 1 - (x * 8 + i) + xoffset) % width,height - 1 - y,0 if pixel else 1)
+                    flip(ser, (width - 1 - (x * 8 + i) + xoffset) % width,height - 1 - y,1 if pixel else 0)
             f.seek(padding, 1)
     
 
@@ -73,7 +71,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    with serial.Serial(args.serial_port, 115200, timeout=SERIAL_TIMEOUT) as ser:
+    with serial.Serial(args.serial_port, 74880, timeout=SERIAL_TIMEOUT) as ser:
         for offset in range(112):
             serialize_bitmap(ser, 'pixelbar-open-day.bmp', offset)
-            time.sleep(0.2)
+            time.sleep(0.5)
