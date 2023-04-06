@@ -8,7 +8,42 @@
 #     import serial
 #     ser = serial.Serial(args.serial_port, args.serial_baudrate)
 
-import sys,time
+# import argparse
+import logging
+import time
+import sys
+import pygame
+from pygame.locals import *
+
+
+# Colors
+C_BACKGROUND = (0,0,0)  # color for the background
+C_DOT_OFF = (20,20,20)  # color for the OFF state of flipdots
+C_DOT_ON = (180,180,0)  # color for the ON state of flipdots
+
+# Framerate
+MAXIMUM_FRAMERATE = 60  # pygame maximum framerate, unit : frames per second
+
+# Display appearance
+DIAMETER = 14 		    # diameter of flipdots, unit: pixels
+RADIUS = DIAMETER // 2  # radius of flipdots, unit: pixels
+SPACING = 2 		    # spacing in between flipdots, unit: pixels
+OFFSET_X = 10           # x axis offset of the display, unit: pixels
+OFFSET_Y = 10           # y axis offset of the display, unit: pixels
+
+# Display resolution
+NOF_COLUMNS = 112       # number of columns of the display on the x axis
+NOF_ROWS = 16           # number of rows of the display on the y axis
+
+# Pixel state
+OFF = 0                 # pixel OFF state
+ON = 1                  # pixel ON state
+
+pixel = [[OFF]*NOF_COLUMNS for i in range(NOF_ROWS)]
+
+# TODO add optional cmdline argument for display resolution. default 112 x 16
+# TODO add optional cmdline argument for display color. default black and yellow
+# TODO add optional cmdline argument for mirroring the display horizontally. default: mirror
 
 """
    * Serial command format: Two consecutive bytes containing x,y coordinates and dot polarity (on/off.)
@@ -21,29 +56,24 @@ import sys,time
    * x = reserved for future use, set to 0 for now
    """
 def flip(col, row, pol):
-    if pol:
-        cmdl = (1<<4)
-    else:
-        cmdl = 0
+    # if pol:
+    #     cmdl = (1<<4)
+    # else:
+    #     cmdl = 0
 
-    cmdl |= (row & 0x0F)
+    # cmdl |= (row & 0x0F)
 
-    cmdh = (1<<7) | (col & 0x7F)
+    # cmdh = (1<<7) | (col & 0x7F)
 
-    #ser.write(bytes([cmdh,cmdl]))
-    sys.stdout.buffer.write(bytes([cmdh, cmdl]))    
-
-# Clear the display
-# for y in range(height):
-#         for x in range(width):
-#             flip(x,y,1)
-
-#     input("press enter please")
+    # #ser.write(bytes([cmdh,cmdl]))
+    # # sys.stdout.buffer.write(bytes([cmdh, cmdl]))    
+    # queue.put(bytes([cmdh, cmdl]))
+    pixel[row][col] = pol
 
 
 def serialize_bitmap(filename, xoffset):
     # read the pixel data of the bitmap file
-    sys.stderr.write('Oy')
+    
     with open(filename, 'rb') as f:
         # read the header information of the bitmap file
         f.seek(10)
@@ -75,19 +105,64 @@ def serialize_bitmap(filename, xoffset):
     
 
 if __name__ == "__main__":
-    serialize_bitmap('pixelbar-open-day.bmp', 0)
-    sys.stdout.flush()
-    sys.stderr.flush()
-    time.sleep(1)
-    serialize_bitmap('pixelbar-open-day.bmp', 1)
-    sys.stdout.flush()
-    sys.stderr.flush()
-    time.sleep(1)
-    serialize_bitmap('pixelbar-open-day.bmp', 2)
-    sys.stdout.flush()
-    sys.stderr.flush()
-    time.sleep(1)
-    serialize_bitmap('pixelbar-open-day.bmp', 3)
-    sys.stdout.flush()
-    sys.stderr.flush()
-    time.sleep(1)
+    format = "%(asctime)s: %(message)s"
+    logging.basicConfig(format=format, level=logging.INFO,
+                        datefmt="%H:%M:%S")
+    
+    # Initialize pygame loop
+    pygame.init()
+
+    hres = NOF_COLUMNS * (DIAMETER + SPACING) + 2 * OFFSET_X    # Horizontal resolution
+    vres = NOF_ROWS * (DIAMETER + SPACING) + 2 * OFFSET_Y       # Vertical resolution
+    window = pygame.display.set_mode((hres,vres))
+    clock = pygame.time.Clock()
+    
+    running = True
+
+    counter = 0
+    offset = 0
+
+    # Pygame loop
+    while running:
+        
+        # Handle events
+        for pgEvent in pygame.event.get():
+            if pgEvent.type == pygame.locals.QUIT:
+                running = False    
+
+        # Fill background color
+        window.fill(C_BACKGROUND)
+
+        counter += 1
+        if counter >= 20:
+            serialize_bitmap('pixelbar-open-day.bmp', offset)
+            counter = 0
+            offset += 1
+            if offset >= 112:
+                offset = 0
+
+
+
+        # Redraw frame
+        for col in range(0, NOF_COLUMNS):
+            for row in range(0, NOF_ROWS): 
+                color = C_DOT_ON if pixel[row][col] else C_DOT_OFF
+
+                xx = col
+                # Mirror display horizontally
+                xx = NOF_COLUMNS - 1 - col
+                center = (xx * (DIAMETER + SPACING) + OFFSET_X + RADIUS, 
+                        row * (DIAMETER + SPACING) + OFFSET_Y + RADIUS)
+
+                pygame.draw.circle(window, color, center, RADIUS)
+
+        pygame.display.update()
+
+        # Limit and display framerate
+        clock.tick(MAXIMUM_FRAMERATE)
+        pygame.display.set_caption(f"FPS: {clock.get_fps():.1f}")
+
+    # Quit pygame
+    pygame.quit()
+
+    logging.info("Main: All done!")
