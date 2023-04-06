@@ -4,6 +4,7 @@ import queue
 import threading
 import time
 import sys
+from select import select
 import pygame
 from pygame.locals import *
 
@@ -14,7 +15,7 @@ C_DOT_OFF = (20,20,20)  # color for the OFF state of flipdots
 C_DOT_ON = (180,180,0)  # color for the ON state of flipdots
 
 # Framerate
-MAXIMUM_FRAMERATE = 60  # pygame maximum framerate, unit : frames per second
+MAXIMUM_FRAMERATE = 2  # pygame maximum framerate, unit : frames per second
 
 # Display appearance
 DIAMETER = 14 		    # diameter of flipdots, unit: pixels
@@ -39,11 +40,19 @@ ON = 1                  # pixel ON state
 def input_handler_thread(queue, event):
     address = 1
     while not event.is_set():
-        data = sys.stdin.buffer.read()
-        if len(data):
-            queue.put(data)
-        else:
-            time.sleep(0.1) # Some delay to prevent high CPU load
+        timeout = 0.1
+        while True:
+            rlist, _, _ = select([sys.stdin], [], [], timeout)
+            if rlist:
+                data = sys.stdin.buffer.read(1)
+            else:
+                print("No input. Moving on...")
+                break
+            
+            if len(data):
+                queue.put(data)
+
+        time.sleep(1)
             
     if event.is_set():
         logging.info("Producer received event. Exiting")
@@ -77,7 +86,7 @@ def display_thread(queue, event):
         # Receive commands
         
         try:
-            if not queue.empty():
+            while not queue.empty():
                 data = queue.get(block=False)
 
                 # logging.info(
@@ -154,5 +163,3 @@ if __name__ == "__main__":
     x.join()
 
     logging.info("Main: All done!")
-
-
